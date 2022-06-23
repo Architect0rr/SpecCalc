@@ -6,7 +6,7 @@
 
 from typing import Dict, Tuple, Union, List
 
-file: str = 'ds'  # file, that contains experimental spectrum
+file: str = 'ds.csv'  # file, that contains experimental spectrum
 
 settings: Dict[str, Union[int, float]] = {
     'pressure': 1,  # pressure in atm

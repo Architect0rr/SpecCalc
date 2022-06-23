@@ -14,8 +14,8 @@ from random import random as rnd
 import csv
 import multiprocessing as mp
 import datetime
-from packaging.version import parse as verp
 from typing import Any, List, Dict, Tuple, Union
+from packaging.version import parse as verp
 import requests
 import numpy
 import matplotlib.pyplot as plt  # type: ignore
@@ -297,8 +297,8 @@ class multitemp_obj():
         self.xar = xarr
         mxs = flm(spew, 5)
         self.maxes = [(i, xarr[i]) for i in mxs]
-        # self.commentr: List[str] = None
-        # self.name = None
+        self.commentr: str = None
+        self.name: str = None
 
     def add_name(self, name: str) -> None:
         """_summary_
@@ -306,7 +306,7 @@ class multitemp_obj():
         Args:
             name (str): _description_
         """
-        if not hasattr(self, 'name'):
+        if self.name is None:
             self.name = name
         else:
             self.name += '->' + name
@@ -317,9 +317,9 @@ class multitemp_obj():
         Returns:
             str: _description_
         """
-        if hasattr(self, 'name'):
-            return self.name
-        return 'Unnamed'
+        if self.name is None:
+            return 'Unnamed'
+        return self.name
 
     def appendc(self, stt: str) -> None:
         """_summary_
@@ -327,13 +327,10 @@ class multitemp_obj():
         Args:
             stt (str): _description_
         """
-        if not hasattr(self, 'commentr'):
-            self.commentr = [stt]
+        if self.commentr is None:
+            self.commentr = stt
         else:
-            if self.commentr is None:
-                self.commentr = [stt]
-            else:
-                self.commentr.append(stt)
+            self.commentr += '->' + stt
 
     def sort(self) -> Union[float, None]:
         """_summary_
@@ -349,9 +346,8 @@ class multitemp_obj():
         Args:
             fil (_type_, optional): _description_. Defaults to None.
         """
-        stin = '---'
-        stin += self.get_name()
-        stin += '---' + '\n|'
+        stin = '------\n'
+        stin += self.get_name() + '\n'
         stin += "{:.3f}".format(self.vn) + ', ' + \
             "{:.2f}".format(self.dvn) + ', ' + "{:1.6f}".format(self.cf)
         if self.center is not None:
@@ -372,7 +368,7 @@ class multitemp_obj():
             stin += '|xspar: ' + \
                 "{:1.3f}".format(self.nlp[2]) + \
                 ', xpos: ' + str(self.nlp[3]) + '\n'
-        stin += str(self.commentr) + '\n'
+        stin += self.commentr + '\n'
         stin += '---'
         if fil is None:
             print(stin)
@@ -763,7 +759,6 @@ def corr(expspecq: List[float], speccs: SPP, vmin: float, vmax: float) -> multit
     mlt = multitemp_obj([(temp[0], 1)], temp[1], temp[2],
                         temp[3], temp[0], len(dlset))
     mlt.appendc('F3P(T,vn,Dvn)')
-    mlt.add_name('F3P(T,vn,Dvn)')
     return mlt
 
 
@@ -790,7 +785,6 @@ def centerspec(exps: List[float], temp: multitemp_obj) -> multitemp_obj:
     cf = simpleresiduals(expw, simsp)
     nte.cf = cf
     nte.appendc('Centered')
-    nte.add_name('Centered')
     return nte
 
 
@@ -842,7 +836,6 @@ def corrt(expspecq: List[float], speccs: SPP, mlt: multitemp_obj) -> multitemp_o
     mlt.cf = temp[1]
     mlu.tmplist = tlistm
     mlu.appendc('T only')
-    mlu.add_name('T only')
     return mlu
 
 
@@ -872,7 +865,6 @@ def corrdoub(exps: List[float], tempcen: multitemp_obj) -> multitemp_obj:
     cf = simpleresiduals(dlset, simsp)
     nte.cf = cf
     nte.appendc('2nd max correct')
-    nte.add_name('2nd max correct')
     return nte
 
 
@@ -897,6 +889,7 @@ def calcresiduals(sp1: List[float], sp2: List[float]) -> Tuple[List[float], List
         res2.append(valsp1-sp2[i])
         res3 += (valsp1-sp2[i])**2
     res3 = math.sqrt(res3/len(sp1))
+    res3 = math.sqrt(sum((res1[i])**2 for i in range(len(res1)))/len(res1))
     return (res1, res2, res3)
 
 
@@ -994,7 +987,6 @@ def corrdt2(expspecq: List[float], speccs: SPP, tempcen: multitemp_obj, tempreq:
     nte.hpt = temd[0]
     nte.cf = temd[2]
     nte.appendc('Multiple T(T&coeff)')
-    nte.add_name('Multiple T(T&coeff)')
     return nte
 
 
@@ -1034,7 +1026,6 @@ def opa2(expspec: List[float], temp: multitemp_obj) -> multitemp_obj:
     nte.add_nlp((trr[0], 0.0, 0.0, 0))
     nte.cf = trr[1]
     nte.appendc('WN range (GD only)')
-    nte.add_name('WN range (GD only)')
     nte.update()
     return nte
 
@@ -1081,7 +1072,6 @@ def opa3(expspec: List[float], temp: multitemp_obj) -> multitemp_obj:
     nte.add_nlp((gl_del, trr[0], trr[1], trr[2]))
     nte.cf = trr[3]
     nte.appendc('WN range (DD&xspar&xpos)')
-    nte.add_name('WN range (DD&xspar&xpos)')
     nte.update()
     return nte
 
@@ -1107,13 +1097,13 @@ def opa4(expspec: List[float], temp: multitemp_obj) -> multitemp_obj:
     cnt = 0
     printProgressBar(0, tc, prefix='Progress:', suffix='Complete', length=50)
     while gl_del <= sr_delta:
-        dd_st = 0.5*gl_del
+        dd_st = 0.7*gl_del
         dd_end = 1*gl_del
         dd_delta = (dd_end - dd_st)/10
         dob_del: float = dd_st
         while dob_del <= dd_end:
-            xspar: float = 0.0
-            xs_delta = (0.1)/10
+            xspar: float = 0.02
+            xs_delta = (0.1-0.02)/10
             while xspar <= 0.1:
                 for xpos in range(glenght):
                     hts = intrnl(doubspec, temp.center,
@@ -1135,7 +1125,6 @@ def opa4(expspec: List[float], temp: multitemp_obj) -> multitemp_obj:
     nte.add_nlp((trr[0], trr[1], trr[2], trr[3]))
     nte.cf = trr[4]
     nte.appendc('WN range (GD&DD&xspar&xpos)')
-    nte.add_name('WN range (GD&DD&xspar&xpos)')
     nte.update()
     return nte
 
@@ -1195,6 +1184,7 @@ def calcs(expspec: List[float], vmin: float, vmax: float, tmin: int, tmax: int, 
     print("Running the correlation program (WavenumberRange(4 param))")
     mlt = opa4(expspec, multitemp)
     mlt.update()
+    mlt.add_name('4 param WNC')
     hist.append(mlt)
     pqu.put(mlt)
     # main_queue.put(mp_q_mess_obj(mlt, expspec))
@@ -1208,6 +1198,7 @@ def calcs(expspec: List[float], vmin: float, vmax: float, tmin: int, tmax: int, 
     print("Running the correlation program (WavenumberRange(3 param))")
     mlt3 = opa3(expspec, mlt2)
     mlt3.update()
+    mlt3.add_name('1&3 param WNC')
     hist.append(mlt3)
     pqu.put(mlt3)
     # main_queue.put(mp_q_mess_obj(mlt2, expspec))
@@ -1222,16 +1213,18 @@ def calcs(expspec: List[float], vmin: float, vmax: float, tmin: int, tmax: int, 
         print("Running the correlation program (multiple temperature(2 param))")
         multitemp = corrdt2(expspec, simspecs, mlt, None, (296, 0.9, 0.01))
         multitemp.update()
+        multitemp.add_name('T&coeff C')
         hist.append(multitemp)
         main_queue.put(mp_q_mess_obj(multitemp, expspec))
         #
         print("Running the correlation program (temperature only)")
-        tyuuu = bmtfa(multitemp)
+        tyuuu = bmtfa(mlt)
         tyuuu.update()
         tyuuu.tmplist = [(296, 0.55), (950, 0.45)]
         tyuuu.hpt = 950
         temp = corrt(expspec, simspecs, tyuuu)
         temp.update()
+        temp.add_name('T only C')
         hist.append(temp)
         main_queue.put(mp_q_mess_obj(temp, expspec))
     #
@@ -1307,7 +1300,7 @@ def visualze3(visobj: mp_q_mess_obj) -> None:
     axs[0].set_title(str(stin))
     axs[1].set_title(r'$vn_{min}$: '+"{:.3f}".format(visobj.temp.vn) + r', $\Delta$ vn:'
                      + "{:.2f}".format(visobj.temp.dvn) + r', $\sigma$:'
-                     + "{:.6f}".format(visobj.temp.cf))
+                     + "{:.6f}".format(visobj.temp.cf) + '(' + "{:.2f}".format(res[2]) + '%)')
 
     axs = numpy.append(axs, axs[1].twinx())
     axs[2].plot(xar, res[1], 'b.')
@@ -1376,7 +1369,7 @@ def main() -> int:
     Raises:
         e: _description_
     """
-    global GLOBAL_FETCH_OBJECT
+    # global GLOBAL_FETCH_OBJECT
     global GLOBAL_PRESSURE
     if len(sys.argv) == 1:
         if os.path.exists('sps.py'):
