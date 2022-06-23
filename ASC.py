@@ -31,7 +31,7 @@ SPP = Dict[int, NCT]
 # GLOBAL_TABLE_NAME: str = 'H20'
 GLOBAL_PRESSURE: float = 1
 MULTIPLE_TEMPERATURE: bool = True
-PRINT_HISTORY: bool = False
+PRINT_HISTORY: bool = True
 main_queue: mp.Queue = mp.Queue()
 err_que: mp.Queue = mp.Queue()
 pqu: squ = squ()
@@ -965,13 +965,18 @@ def corrdt2(expspecq: List[float], speccs: SPP, tempcen: multitemp_obj, tempreq:
                 sumx = hitset[j]*(1-sumcf-tmp)
                 if tempreq is not None:
                     for k in tempreq.keys():
-                        sumx += reqsimsp[k][j]*tempreq[k]
+                        try:
+                            sumx += reqsimsp[k][j]*tempreq[k]
+                        except KeyError as e:
+                            # print('tempreq:', tempreq)
+                            # print(e.args[0])
+                            del tempreq[e.args[0]]
                 sumx += reqsimsp[ittemp][j]*tmp
                 doubspec.append(sumx)
             doubspec = normspec(doubspec)
             cf = simpleresiduals(dlset, doubspec)
             if tempreq is not None:
-                newadict = tempreq
+                newadict = tempreq.copy()
             else:
                 newadict = {}
             newadict.update([(key, 1-sumcf-tmp), (ittemp, tmp)])

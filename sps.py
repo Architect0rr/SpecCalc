@@ -26,6 +26,6 @@ substance: Dict[str, Union[str, float]] = {
 
 
 advanced: Dict[str, Union[Dict[int, float], int]] = {
-    'FixedCoeffTemp': {296: 0.45},
-    'IteratedTemp': None,
+    'FixedCoeffTemp': {650: 0.1},
+    'IteratedTemp': 350,
 }
