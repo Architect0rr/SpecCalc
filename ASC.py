@@ -30,6 +30,8 @@ NCT = List[Tuple[float, float]]
 SPP = Dict[int, NCT]
 # GLOBAL_TABLE_NAME: str = 'H20'
 GLOBAL_PRESSURE: float = 1
+MULTIPLE_TEMPERATURE: bool = True
+PRINT_HISTORY: bool = False
 main_queue: mp.Queue = mp.Queue()
 err_que: mp.Queue = mp.Queue()
 pqu: squ = squ()
@@ -1129,7 +1131,16 @@ def opa4(expspec: List[float], temp: multitemp_obj) -> multitemp_obj:
     return nte
 
 
-def calcs(expspec: List[float], vmin: float, vmax: float, tmin: int, tmax: int, dt: int) -> int:
+class temp_param_useless():
+    """_summary_
+    """
+
+    def __init__(self, itt: int = None, fixt: Dict[int, float] = None) -> None:
+        self.itt = itt
+        self.fixt = fixt
+
+
+def calcs(expspec: List[float], vmin: float, vmax: float, tmin: int, tmax: int, dt: int, tparam: temp_param_useless = None) -> int:
     """_summary_
 
     Args:
@@ -1173,16 +1184,31 @@ def calcs(expspec: List[float], vmin: float, vmax: float, tmin: int, tmax: int, 
         temp = centerspec(expspec, temp)
         temp.update()
         hist.append(temp)
-    # main_queue.put(mp_q_mess_obj(temp, expspec, 'after fourth corr'))
+        # main_queue.put(mp_q_mess_obj(temp, expspec, 'after fourth corr'))
     #
-    print("Running the correlation program (multiple temperature(2 param))")
-    multitemp = corrdt2(expspec, simspecs, temp, None, (296, 0.9, 0.01))
-    multitemp.update()
-    hist.append(multitemp)
-    # main_queue.put(mp_q_mess_obj(multitemp, expspec))
+    if MULTIPLE_TEMPERATURE:
+        print("Running the correlation program (multiple temperature(2 param))")
+        if (tparam.fixt is not None) and (tparam.itt is None):
+            ntaqw: Dict[int, float] = {}
+            hereitt: int = 0
+            for i, (temper, coef) in enumerate(tparam.fixt.items()):
+                if i == 0:
+                    hereitt = temper
+                else:
+                    ntaqw[temper] = coef
+            if len(ntaqw) == 0:
+                ntaqw = None
+            temp = corrdt2(expspec, simspecs, temp, ntaqw, (hereitt, 0.9, 0.01))
+        elif (tparam.fixt is not None) and (tparam.itt is not None):
+            temp = corrdt2(expspec, simspecs, temp, tparam.fixt, (tparam.itt, 0.9, 0.01))
+        else:
+            temp = corrdt2(expspec, simspecs, temp, None, (tparam.itt, 0.9, 0.01))
+        temp.update()
+        hist.append(temp)
+        # main_queue.put(mp_q_mess_obj(multitemp, expspec))
     #
     print("Running the correlation program (WavenumberRange(4 param))")
-    mlt = opa4(expspec, multitemp)
+    mlt = opa4(expspec, temp)
     mlt.update()
     mlt.add_name('4 param WNC')
     hist.append(mlt)
@@ -1190,7 +1216,7 @@ def calcs(expspec: List[float], vmin: float, vmax: float, tmin: int, tmax: int, 
     # main_queue.put(mp_q_mess_obj(mlt, expspec))
     #
     print("Running the correlation program (WavenumberRange(1 param))")
-    mlt2 = opa2(expspec, multitemp)
+    mlt2 = opa2(expspec, temp)
     mlt2.update()
     hist.append(mlt2)
     # main_queue.put(mp_q_mess_obj(mlt, expspec))
@@ -1210,25 +1236,58 @@ def calcs(expspec: List[float], vmin: float, vmax: float, tmin: int, tmax: int, 
     # for mlt in iter(pqu, 'stop'):
     while not pqu.empty():
         mlt = pqu.get()
-        print("Running the correlation program (multiple temperature(2 param))")
-        multitemp = corrdt2(expspec, simspecs, mlt, None, (296, 0.9, 0.01))
-        multitemp.update()
-        multitemp.add_name('T&coeff C')
-        hist.append(multitemp)
-        main_queue.put(mp_q_mess_obj(multitemp, expspec))
-        #
-        print("Running the correlation program (temperature only)")
-        tyuuu = bmtfa(mlt)
-        tyuuu.update()
-        tyuuu.tmplist = [(296, 0.55), (950, 0.45)]
-        tyuuu.hpt = 950
-        temp = corrt(expspec, simspecs, tyuuu)
-        temp.update()
-        temp.add_name('T only C')
-        hist.append(temp)
-        main_queue.put(mp_q_mess_obj(temp, expspec))
+        if MULTIPLE_TEMPERATURE:
+            print("Running the correlation program (multiple temperature(2 param))")
+            if (tparam.fixt is not None) and (tparam.itt is None):
+                ntaqw: Dict[int, float] = {}
+                hereitt: int = 0
+                for i, (temper, coef) in enumerate(tparam.fixt.items()):
+                    if i == 0:
+                        hereitt = temper
+                    else:
+                        ntaqw[temper] = coef
+                if len(ntaqw) == 0:
+                    ntaqw = None
+                multitemp = corrdt2(expspec, simspecs, mlt, ntaqw, (hereitt, 0.9, 0.01))
+            elif (tparam.fixt is not None) and (tparam.itt is not None):
+                multitemp = corrdt2(expspec, simspecs, mlt, tparam.fixt, (tparam.itt, 0.9, 0.01))
+            else:
+                multitemp = corrdt2(expspec, simspecs, mlt, None, (tparam.itt, 0.9, 0.01))
+            # multitemp = corrdt2(expspec, simspecs, mlt, None, (296, 0.9, 0.01))
+            multitemp.update()
+            multitemp.add_name('T&coeff C')
+            hist.append(multitemp)
+            main_queue.put(mp_q_mess_obj(multitemp, expspec))
+            #
+            if (tparam.fixt is not None) and (tparam.itt is None):
+                print("Running the correlation program (temperature only)")
+                tyuuu = bmtfa(mlt)
+                tyuuu.update()
+                sumcf: float = 0
+                tl = []
+                for i, (temper, coef) in enumerate(tparam.fixt.items()):
+                    if temper != tyuuu.hpt:
+                        tl.append((temper, coef))
+                        sumcf += coef
+                tl.append((tyuuu.hpt, 1 - sumcf))
+                tyuuu.tmplist = tl
+                temp = corrt(expspec, simspecs, tyuuu)
+                temp.update()
+                temp.add_name('T only C')
+                hist.append(temp)
+                main_queue.put(mp_q_mess_obj(temp, expspec))
+        else:
+            print("Running the correlation program (temperature only)")
+            tyuuu = bmtfa(mlt)
+            tyuuu.update()
+            temp = corrt(expspec, simspecs, tyuuu)
+            temp.update()
+            temp.add_name('T only C')
+            hist.append(temp)
+            main_queue.put(mp_q_mess_obj(temp, expspec))
     #
-    hist.outprint()
+    if PRINT_HISTORY:
+        hist.outprint()
     #
     return 0
 
@@ -1362,6 +1421,8 @@ USAGE_STRING =\
     '''Usage:  script.py <file> <vnmin> <vnmax> <tmin> <tmax> <dt> <pressure>
     Or give settings file: sps.py'''
 
+MULTIPLE_TEMPERATURE = False
+
 
 def main() -> int:
     """_summary_
@@ -1398,7 +1459,20 @@ def main() -> int:
                 elif key == 'isID':
                     GLOBAL_FETCH_OBJECT.isID = int(item)
                 else:
-                    print('Unrecognized option name: ' + str(key) + ' in substence section')
+                    print('Unrecognized option name: ' + str(key) + ' in substance section')
+            for (key, item) in sps.advanced.items():
+                if key == 'FixedCoeffTemp':
+                    fct = item
+                elif key == 'IteratedTemp':
+                    ittemr = item
+                else:
+                    print('Unrecognized option name: ' + str(key) + ' in advanced section')
+            global MULTIPLE_TEMPERATURE
+            if (fct is None) and (ittemr is None):
+                MULTIPLE_TEMPERATURE = False
+            else:
+                MULTIPLE_TEMPERATURE = True
+                tprewq = temp_param_useless(ittemr, fct)
         else:
             print(USAGE_STRING)
             return 1
@@ -1423,7 +1497,10 @@ def main() -> int:
     vis_proc.start()
     exps = retrn(fl2nl(file_to_open)[0])
     try:
-        calcs(exps, vmin, vmax, tmin, tmax, dt)
+        if MULTIPLE_TEMPERATURE:
+            calcs(exps, vmin, vmax, tmin, tmax, dt, tprewq)
+        else:
+            calcs(exps, vmin, vmax, tmin, tmax, dt)
         tsend = datetime.datetime.timestamp(datetime.datetime.now())
         print('Time elapsed: ', round(tsend - tstart), 'secs')
     except Exception as e:
@@ -1448,9 +1525,6 @@ def main() -> int:
     # main_queue.get().outprint()
     return 0
 
-
-__author__ = "Perevoshchikov Egor (rickbatra0z@gmail.com)"
-__copyright__ = "Copyright © 2022 Perevoshchikov Egor (rickbatra0z@gmail.com)"
 
 print('This is the ' + PROGRAM_NAME + ', ver: ' + __version__)
 if verp(hapi.__version__) < verp(MINIMAL_HAPI_VERSION):

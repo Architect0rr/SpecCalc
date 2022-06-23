@@ -4,7 +4,7 @@
 
 """
 
-from typing import Dict, Tuple, Union, List
+from typing import Dict, Union
 
 file: str = 'ds.csv'  # file, that contains experimental spectrum
 
@@ -14,7 +14,7 @@ settings: Dict[str, Union[int, float]] = {
     'vnmax': 7190,  # Max wavenumber
     'tmin': 250,  # Min temperature
     'tmax': 1500,  # Max temperature
-    'dt': 100,  # Temperature resolution (less - slower)
+    'dt': 50,  # Temperature resolution (less - slower)
 }
 
 
@@ -25,7 +25,7 @@ substance: Dict[str, Union[str, float]] = {
 }
 
 
-advanced: Dict[str, Union[List[Tuple[int, float]], Tuple[int, float, float]]] = {
-    'FixedCoeffTemp': [],
-    'IteratedTemp': (296, 0.9, 0.1),
+advanced: Dict[str, Union[Dict[int, float], int]] = {
+    'FixedCoeffTemp': {296: 0.45},
+    'IteratedTemp': None,
 }
