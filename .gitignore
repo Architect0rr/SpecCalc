@@ -1,0 +1,9 @@
+/.mypy_cache
+/.ropeproject
+/.vscode
+/__pycache__
+/mypy.ini
+/pylama.ini
+/pylintrc
+/wolframdb
+/Инструкция.odt
